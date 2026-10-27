@@ -20,32 +20,31 @@ function amount_(v) {
  return Number(s);
 }
 function round_(v){return Math.round((v+Number.EPSILON)*100)/100;}
-function readBudget_(name) {
- const rows=sheet_(name).getDataRange().getValues();
- const posten=[];let inkomen=0;
- rows.forEach((r,i)=>{
-  const item=String(r[0]??'').trim(),bedrag=amount_(r[1]);
-  if(!item||!Number.isFinite(bedrag)) return;
-  if(/^(inkomen|salaris|loon|netto inkomen)$/i.test(item)) inkomen+=bedrag;
-  else posten.push({item,bedrag});
+function personal_(name) {
+ const rows=sheet_(name).getRange('A1:B40').getValues(),posten=[];let inkomen=0;
+ rows.forEach(r=>{const item=String(r[0]||'').trim(),bedrag=amount_(r[1]);if(!item||!Number.isFinite(bedrag))return;
+ if(/^netto inkomen$/i.test(item)) inkomen=bedrag;
+ else if(!/^(ingevulde maandlasten|vrij te besteden|voorlopig over|nog in te vullen)$/i.test(item))posten.push({item,bedrag});
  });
  const vasteLastenTotaal=round_(posten.reduce((s,p)=>s+p.bedrag,0));
- return {inkomen:round_(inkomen),vasteLastenTotaal,vrij:round_(inkomen-vasteLastenTotaal),posten};
+ return {inkomen,vasteLastenTotaal,vrij:round_(inkomen-vasteLastenTotaal),posten};
 }
 function getCompleteFinancialData() {
- const mandy=readBudget_('Mandy'),yanniek=readBudget_('Yanniek');
- const huis=readBudget_('Gezamenlijk');
- const sh=sheet_('Uitgaven'),rows=sh.getDataRange().getValues();
- const uitgaven=[];
- rows.slice(1).forEach((r,i)=>{
-  const item=String(r[0]??'').trim(),kosten=amount_(r[1]);
-  if(!item||!Number.isFinite(kosten))return;
+ const mandy=personal_('Vaste lasten Mandy'),yanniek=personal_('Vaste lasten Yanniek');
+ const houseRows=sheet_('Vaste lasten koophuis').getRange('F7:G30').getValues();
+ const vasteLastenHuis=houseRows.filter(r=>r[0]&&Number.isFinite(amount_(r[1]))&&!/^(totaal samen|per persoon|eigenwoningforfait|ozb)/i.test(String(r[0]))).slice(0,10).map(r=>({item:String(r[0]),bedrag:amount_(r[1])}));
+ const vasteLasten=round_(vasteLastenHuis.reduce((s,p)=>s+p.bedrag,0));
+ const gezamenlijkePosten=[{item:'Vaste lasten huis',bedrag:vasteLasten},{item:'Sparen',bedrag:600},{item:'Eten & Boodschappen',bedrag:640},{item:'Vakantie',bedrag:200}];
+ const sh=sheet_('Uitgaven'),rows=sh.getDataRange().getValues(),uitgaven=[];
+ rows.forEach((r,i)=>{
+  if(i<5)return;
+  const item=String(r[0]||'').trim(),kosten=amount_(r[1]);
+  if(!item||!Number.isFinite(kosten)||kosten<=0)return;
   const m=r[2]===''?round_(kosten/2):amount_(r[2]);
   const y=r[3]===''?round_(kosten-m):amount_(r[3]);
-  uitgaven.push({row:i+2,item,kosten,aandeelMandy:m,aandeelYanniek:y});
+  uitgaven.push({row:i+1,item,kosten,aandeelMandy:m,aandeelYanniek:y});
  });
- const vasteLastenHuis=huis.posten.filter(p=>!/^(sparen|boodschappen|eten|vakantie)$/i.test(p.item));
- return {overview:{mandy,yanniek,huis:{vasteLasten:round_(vasteLastenHuis.reduce((s,p)=>s+p.bedrag,0)),totaalInbreng:round_(huis.vasteLastenTotaal)}},vasteLastenHuis,gezamenlijkePosten:huis.posten,uitgaven,totaalInboedelKosten:round_(uitgaven.reduce((s,p)=>s+p.kosten,0)),aandeelMandy:round_(uitgaven.reduce((s,p)=>s+p.aandeelMandy,0)),aandeelYanniek:round_(uitgaven.reduce((s,p)=>s+p.aandeelYanniek,0))};
+ return {overview:{mandy,yanniek,huis:{vasteLasten,totaalInbreng:round_(gezamenlijkePosten.reduce((s,p)=>s+p.bedrag,0))}},vasteLastenHuis,gezamenlijkePosten,uitgaven,totaalInboedelKosten:round_(uitgaven.reduce((s,p)=>s+p.kosten,0)),aandeelMandy:round_(uitgaven.reduce((s,p)=>s+p.aandeelMandy,0)),aandeelYanniek:round_(uitgaven.reduce((s,p)=>s+p.aandeelYanniek,0))};
 }
 function addInboedelUitgave(form) {
  const item=String(form.item??'').trim(),kosten=amount_(form.kosten);
@@ -60,7 +59,7 @@ function addInboedelUitgave(form) {
  return getCompleteFinancialData();
 }
 function deleteInboedelUitgave(row) {
- const n=Number(row);if(!Number.isInteger(n)||n<2)throw new Error('Ongeldige rij.');
+ const n=Number(row);if(!Number.isInteger(n)||n<6)throw new Error('Ongeldige rij.');
  const lock=LockService.getDocumentLock()||LockService.getScriptLock();lock.waitLock(10000);
  try {const sh=sheet_('Uitgaven');if(n>sh.getLastRow())throw new Error('Rij bestaat niet.');sh.deleteRow(n);SpreadsheetApp.flush();}
  finally{lock.releaseLock();}
