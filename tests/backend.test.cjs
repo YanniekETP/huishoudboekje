@@ -27,6 +27,8 @@ function makeSheet(){
 const sh=makeSheet(),lock={waitLock(){},releaseLock(){}};
 const ctx={SpreadsheetApp:{openById(){return {getSheetByName(){return sh}}},flush(){},CopyPasteType:{PASTE_FORMULA:'PASTE_FORMULA'}},LockService:{getScriptLock(){return lock}}};
 vm.createContext(ctx);vm.runInContext(src,ctx);
+// Isolate mutation tests from the unrelated financial dashboard reads.
+ctx.getCompleteFinancialData=()=>({});
 assert.equal(ctx.findInboedelTotalRow_(sh),50);
 assert.equal(ctx.validateInboedel_({item:'Lamp',kosten:'€ 25,50'}).kosten,25.5);
 for(const bad of [{item:'',kosten:10},{item:'Lamp',kosten:0},{item:'Lamp',kosten:'abc'}])assert.throws(()=>ctx.validateInboedel_(bad));
