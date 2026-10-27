@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const src=fs.readFileSync('Code.gs','utf8');
 function makeSheet(){
- const cells=Array.from({length:50},()=>Array(5).fill(''));
+ const cells=Array.from({length:50},()=>Array(9).fill(''));
  cells[4][0]='Item';cells[5]=['Bed',100,50,50,''];
  cells[49]=['Totaal bekende aankopen','=SUM(B6:B49)','=SUM(C6:C49)','=SUM(D6:D49)',''];
  return {
@@ -35,21 +35,28 @@ ctx.getCompleteFinancialData=()=>({});
 assert.equal(ctx.findInboedelTotalRow_(sh),50);
 assert.equal(ctx.validateInboedel_({item:'Lamp',kosten:'€ 25,50'}).kosten,25.5);
 for(const bad of [{item:'',kosten:10},{item:'Lamp',kosten:0},{item:'Lamp',kosten:'abc'}])assert.throws(()=>ctx.validateInboedel_(bad));
-ctx.addInboedelUitgave({item:'Lamp',kosten:25.5});
+ctx.addInboedelUitgave({item:'Lamp',kosten:25.5,betaaldDoor:'mandy',percentageMandy:70});
+assert.equal(sh.cells[6][5],'mandy');
+assert.equal(sh.cells[6][8],70);
+assert.match(sh.cells[6][2],/I7/);
 assert.deepEqual(sh.cells[6].slice(0,2),['Lamp',25.5]);
 assert.equal(ctx.findInboedelTotalRow_(sh),50);
 ctx.deleteInboedelUitgave(7);
 assert.deepEqual(sh.cells[6].slice(0,2),['','']);
+assert.equal(sh.cells[6][5],'');
+assert.equal(sh.cells[6][8],'');
 assert.equal(sh.cells[49][0],'Totaal bekende aankopen');
 assert.throws(()=>ctx.deleteInboedelUitgave(50));
 assert.throws(()=>ctx.deleteInboedelUitgave(5));
 assert.equal(sh.cells[5][0],'Bed');
 // Exhaust all available purchase rows and ensure a new row is inserted safely.
 for(let row=7;row<=49;row++){sh.cells[row-1][0]='Test '+row;sh.cells[row-1][1]=row;}
-ctx.addInboedelUitgave({item:'Overflow',kosten:12.34});
+ctx.addInboedelUitgave({item:'Overflow',kosten:12.34,betaaldDoor:'enof',percentageMandy:30});
 assert.equal(ctx.findInboedelTotalRow_(sh),51);
 assert.equal(sh.cells[49][0],'Overflow');
 assert.equal(sh.cells[49][1],12.34);
+assert.equal(sh.cells[49][5],'enof');
+assert.equal(sh.cells[49][8],30);
 assert.equal(sh.cells[50][0],'Totaal bekende aankopen');
 assert.equal(sh.cells[50][1],'=SUM(B6:B50)');
 assert.equal(sh.cells[50][2],'=SUM(C6:C50)');
