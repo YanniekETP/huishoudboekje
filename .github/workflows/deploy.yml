@@ -49,10 +49,24 @@ jobs:
         run: |
           cd /tmp/huishoudboekje-app
           clasp deployments > /tmp/huishoudboekje-deployments.txt
-          grep -F 'AKfycbzprE325iYVqP1PZkuoi00uQoxSXugfAe6LVSV_wIC6WfLv3fLpiztX92Kv9c6mUvQb9w' /tmp/huishoudboekje-deployments.txt >/dev/null || { echo "Bestaande productie-deployment niet gevonden; niets gewijzigd"; exit 1; }
+          if ! grep -F 'AKfycbzprE325iYVqP1PZkuoi00uQoxSXugfAe6LVSV_wIC6WfLv3fLpiztX92Kv9c6mUvQb9w' /tmp/huishoudboekje-deployments.txt >/dev/null; then
+            echo "::error::De opgegeven productie-deployment staat niet in dit Apps Script-project. Publicatie is veilig gestopt."
+            echo "Beschikbare deployments (IDs verborgen):"
+            sed -E 's/AKfy[a-zA-Z0-9_-]+/[deployment-id verborgen]/g' /tmp/huishoudboekje-deployments.txt
+            exit 1
+          fi
       - name: Upload nieuwe backend en update dezelfde deployment
         run: |
-          cp Code.gs /tmp/huishoudboekje-app/Code.gs
+          # clasp pull bewaart server-side Code.gs lokaal meestal als Code.js.
+          # Overschrijf hetzelfde bestand, anders ontstaan dubbele doGet-functies.
+          if [ -f /tmp/huishoudboekje-app/Code.js ]; then
+            cp Code.gs /tmp/huishoudboekje-app/Code.js
+          elif [ -f /tmp/huishoudboekje-app/Code.gs ]; then
+            cp Code.gs /tmp/huishoudboekje-app/Code.gs
+          else
+            echo "::error::Bestaand Code-bestand ontbreekt; veilig gestopt"
+            exit 1
+          fi
           cd /tmp/huishoudboekje-app
           clasp push -f
           clasp deploy --deploymentId 'AKfycbzprE325iYVqP1PZkuoi00uQoxSXugfAe6LVSV_wIC6WfLv3fLpiztX92Kv9c6mUvQb9w' --description "Huishoudboekje ${GITHUB_SHA}"
