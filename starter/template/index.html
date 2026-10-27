@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="nl"><head><base target="_top"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ET WebApp</title>
+<style>body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px}main{max-width:760px;margin:auto}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px}.error{color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px}button{padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff}</style>
+</head><body><main><h1>ET WebApp</h1><section class="card"><p id="status" role="status">Gegevens ophalen…</p><div id="result"></div><p id="error" class="error" role="alert" hidden></p><button id="retry" type="button" hidden>Opnieuw proberen</button></section></main>
+<script>
+(function(){
+  'use strict';
+  let requestNumber=0;
+  const status=document.getElementById('status');
+  const result=document.getElementById('result');
+  const error=document.getElementById('error');
+  const retry=document.getElementById('retry');
+  function fail(message){status.textContent='Laden mislukt';error.textContent=message;error.hidden=false;retry.hidden=false;}
+  function load(){
+    const request=++requestNumber;
+    status.textContent='Gegevens ophalen…';result.textContent='';error.hidden=true;retry.hidden=true;
+    setTimeout(function(){if(request===requestNumber&&status.textContent==='Gegevens ophalen…')fail('Geen antwoord binnen 25 seconden. Probeer opnieuw.');},25000);
+    if(typeof google==='undefined'||!google.script||!google.script.run){fail('Open deze pagina via de gepubliceerde Apps Script-webapp.');return;}
+    google.script.run.withSuccessHandler(function(data){
+      if(request!==requestNumber)return;
+      status.textContent='Gegevens geladen';
+      result.textContent=JSON.stringify(data,null,2);
+    }).withFailureHandler(function(e){if(request===requestNumber)fail(e&&e.message?e.message:'Onbekende serverfout');}).getDashboardData();
+  }
+  retry.addEventListener('click',load);
+  window.addEventListener('error',function(e){fail(e.message||'JavaScript-fout');});
+  load();
+})();
+</script></body></html>
