@@ -308,7 +308,7 @@
         document.getElementById('vrij'+cap).textContent=formatCurrency(p.vrij);
         document.getElementById('inkomen'+cap).textContent=formatCurrency(p.inkomen);
         document.getElementById('vasteLasten'+cap).textContent='- '+formatCurrency(p.vasteLastenTotaal);
-        renderRows('posten'+cap,p.posten.filter(post=>!/(storting|inbreng).*(en\\/?of|gezamenlijk)|(en\\/?of|gezamenlijk).*(storting|inbreng)/i.test(String(post.item||''))),'bedrag');
+        renderRows('posten'+cap,p.posten.filter(post=>{const label=String(post.item||'').toLowerCase();return !((label.includes('storting')||label.includes('inbreng'))&&(label.includes('en/of')||label.includes('gezamenlijk')));}), 'bedrag');
       }
       const huis=data.overview.huis;
       document.getElementById('stortingMandy').textContent=formatCurrency(huis.totaalInbreng/2);
