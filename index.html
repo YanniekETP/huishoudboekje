@@ -309,7 +309,7 @@
         document.getElementById('inkomen'+cap).textContent=formatCurrency(p.inkomen);
         document.getElementById('vasteLasten'+cap).textContent='- '+formatCurrency(p.vasteLastenTotaal);
         const sortedPosten=[...p.posten].sort((a,b)=>{
-          const isStorting=post=>/storting/i.test(String(post.item||'')) && /(gezamenlijk|en\\/?of)/i.test(String(post.item||''));
+          const isStorting=post=>{const label=String(post.item||'').toLowerCase();return label.includes('storting')&&(label.includes('gezamenlijk')||label.includes('en/of'));};
           const aStorting=isStorting(a), bStorting=isStorting(b);
           if(aStorting!==bStorting)return aStorting?-1:1;
           return (Number(b.bedrag)||0)-(Number(a.bedrag)||0);
