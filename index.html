@@ -128,7 +128,18 @@
         <form id="inboedelForm" class="space-y-3">
           <input type="text" id="item" placeholder="Item (bijv. Bed, Droger)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none" required>
           <input type="number" step="0.01" id="kosten" min="0.01" placeholder="Bedrag (€)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none" required>
-          <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-sm">Opslaan in Sheet</button>
+          <label class="block text-xs font-semibold">Betaald vanaf</label>
+          <select id="inboedelPayer" class="w-full bg-slate-50 border rounded-xl p-3 text-sm" required>
+            <option value="enof">En/of-rekening</option><option value="mandy">Mandy privé</option><option value="yanniek">Yanniek privé</option>
+          </select>
+          <label class="block text-xs font-semibold">Verdeling van de kosten</label>
+          <select id="inboedelSplit" class="w-full bg-slate-50 border rounded-xl p-3 text-sm">
+            <option value="50">50% Mandy / 50% Yanniek</option><option value="100">100% Mandy / 0% Yanniek</option><option value="0">0% Mandy / 100% Yanniek</option><option value="custom">Andere verdeling</option>
+          </select>
+          <div id="customSplitBox" class="hidden"><label class="text-xs">Percentage Mandy (rest is Yanniek)</label><input id="customMandy" type="number" min="0" max="100" step="0.01" value="70" class="w-full border rounded-xl p-3 text-sm"></div>
+          <p id="splitPreview" class="text-xs text-slate-500"></p>
+          <button type="submit" id="inboedelSubmit" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-sm">Aankoop opslaan</button>
+          <button type="button" id="cancelInboedelEdit" onclick="resetInboedelEdit()" class="hidden text-sm text-blue-600">Wijziging annuleren</button>
         </form>
       </div>
       <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
@@ -253,6 +264,41 @@
       else runner.addFixedCost(fixedArea,value);
     });
 
+    let inboedelEditing=null;
+    const payerNames={enof:'En/of-rekening',mandy:'Mandy privé',yanniek:'Yanniek privé',onbekend:'Niet geregistreerd'};
+    function currentMandyPercentage(){
+      const split=document.getElementById('inboedelSplit').value;
+      return split==='custom'?Number(document.getElementById('customMandy').value):Number(split);
+    }
+    function updateSplitPreview(){
+      const split=document.getElementById('inboedelSplit').value;
+      document.getElementById('customSplitBox').classList.toggle('hidden',split!=='custom');
+      const m=currentMandyPercentage(),cost=Number(document.getElementById('kosten').value)||0;
+      document.getElementById('splitPreview').textContent=Number.isFinite(m)&&m>=0&&m<=100?'Mandy: '+m+'% ('+formatCurrency(cost*m/100)+') · Yanniek: '+(100-m)+'% ('+formatCurrency(cost*(100-m)/100)+')':'Vul een percentage tussen 0 en 100 in.';
+    }
+    ['inboedelSplit','customMandy','kosten'].forEach(id=>document.getElementById(id).addEventListener('input',updateSplitPreview));
+    function resetInboedelEdit(){
+      inboedelEditing=null;
+      document.getElementById('inboedelForm').reset();
+      document.getElementById('inboedelSubmit').textContent='Aankoop opslaan';
+      document.getElementById('cancelInboedelEdit').classList.add('hidden');
+      updateSplitPreview();
+    }
+    function editInboedel(row){
+      const p=(latestData?.uitgaven||[]).find(x=>x.row===row);if(!p)return;
+      inboedelEditing={row,expected:{item:p.item,kosten:p.kosten}};
+      document.getElementById('item').value=p.item;
+      document.getElementById('kosten').value=p.kosten;
+      document.getElementById('inboedelPayer').value=p.betaaldDoor==='onbekend'?'enof':p.betaaldDoor;
+      const percent=Number(p.percentageMandy);
+      document.getElementById('inboedelSplit').value=[0,50,100].includes(percent)?String(percent):'custom';
+      document.getElementById('customMandy').value=percent;
+      document.getElementById('inboedelSubmit').textContent='Wijzigingen opslaan';
+      document.getElementById('cancelInboedelEdit').classList.remove('hidden');
+      updateSplitPreview();
+      document.getElementById('inboedelForm').scrollIntoView({behavior:'smooth',block:'center'});
+    }
+
     function renderData(data) {
       latestData=data;
       for (const name of ['mandy','yanniek']) {
@@ -272,7 +318,7 @@
       renderRows('gezamenlijkOverig',(data.gezamenlijkePosten||[]).filter(p=>!data.vasteLastenHuis.some(x=>x.item===p.item)),'bedrag');
       document.getElementById('totaalInboedel').textContent=formatCurrency(data.totaalInboedelKosten);
       document.getElementById('aandeelInboedelPP').textContent='Mandy: '+formatCurrency(data.aandeelMandy)+' | Yanniek: '+formatCurrency(data.aandeelYanniek);
-      document.getElementById('lijstInboedel').innerHTML=(data.uitgaven||[]).map(p=>'<div class="flex items-center justify-between gap-2 py-2 border-b border-slate-100"><span class="text-xs font-semibold">'+safeText(p.item)+'</span><span class="text-xs font-bold">'+formatCurrency(p.kosten)+'</span><button type="button" class="text-xs text-red-600" onclick="removeItem('+p.row+')">Verwijder</button></div>').join('')||'<p class="text-xs text-slate-400">Nog geen items opgeslagen.</p>';
+      document.getElementById('lijstInboedel').innerHTML=(data.uitgaven||[]).map(p=>'<div class="border-b border-slate-100 py-3 flex flex-wrap items-center gap-3"><div class="flex-1 min-w-40"><div class="text-sm font-semibold">'+safeText(p.item)+' · '+formatCurrency(p.kosten)+'</div><div class="text-xs text-slate-500">Betaald: '+safeText(payerNames[p.betaaldDoor]||'Niet geregistreerd')+' · Verdeling: Mandy '+p.percentageMandy+'% / Yanniek '+(100-p.percentageMandy)+'%</div><div class="text-xs text-slate-500">Aandeel: Mandy '+formatCurrency(p.aandeelMandy)+' · Yanniek '+formatCurrency(p.aandeelYanniek)+'</div></div><button type="button" class="text-xs text-blue-600" onclick="editInboedel('+p.row+')">Wijzig</button><button type="button" class="text-xs text-red-600" onclick="removeItem('+p.row+')">Verwijder</button></div>').join('')||'<p class="text-xs text-slate-400">Nog geen items opgeslagen.</p>';
       document.getElementById('loading').style.display='none';
       if(fixedArea)renderFixedItems();
     }
@@ -299,22 +345,22 @@
       }
     };
 
+    updateSplitPreview();
     document.getElementById('inboedelForm').addEventListener('submit', function(e) {
       e.preventDefault();
       document.getElementById('loading').style.display = 'flex';
       
       const formData = {
         item: document.getElementById('item').value,
-        kosten: document.getElementById('kosten').value
+        kosten: document.getElementById('kosten').value,
+        betaaldDoor:document.getElementById('inboedelPayer').value,
+        percentageMandy:currentMandyPercentage()
       };
+      if(!Number.isFinite(formData.percentageMandy)||formData.percentageMandy<0||formData.percentageMandy>100){handleError({message:'Ongeldige verdeling'});return;}
 
-      google.script.run
-        .withSuccessHandler(function(newData) {
-          renderData(newData);
-          document.getElementById('inboedelForm').reset();
-        })
-        .withFailureHandler(handleError)
-        .addInboedelUitgave(formData);
+      const runner=google.script.run.withSuccessHandler(function(newData){renderData(newData);resetInboedelEdit();}).withFailureHandler(handleError);
+      if(inboedelEditing)runner.updateInboedelVerdeling(inboedelEditing.row,formData,inboedelEditing.expected);
+      else runner.addInboedelUitgave(formData);
     });
   </script>
 </body>
