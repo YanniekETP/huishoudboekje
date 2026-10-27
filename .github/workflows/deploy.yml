@@ -1,0 +1,58 @@
+name: Publiceer huishoudboekje via clasp
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: huishoudboekje-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Controleer backend
+        run: |
+          cp Code.gs /tmp/huishoudboekje-check.js
+          node --check /tmp/huishoudboekje-check.js
+      - name: Google-autorisatie voor clasp
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          test -n "$CLASPRC_JSON" || { echo "CLASPRC_JSON ontbreekt in deze repository"; exit 1; }
+          umask 077
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          npm install --global @google/clasp@latest
+      - name: Maak back-up van bestaand Apps Script-project
+        run: |
+          mkdir -p /tmp/huishoudboekje-app
+          printf '%s\n' '{"scriptId":"1pxhm428Tday6zlsiYJZGdE8PC8T8Ub2pF7yh5Y1JdN1z9-1SKbRlatUQ","rootDir":"."}' > /tmp/huishoudboekje-app/.clasp.json
+          cd /tmp/huishoudboekje-app
+          clasp pull
+          test -f appsscript.json || { echo "Geen bestaande manifest; stop om verlies te voorkomen"; exit 1; }
+          cp -a /tmp/huishoudboekje-app /tmp/huishoudboekje-backup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: huishoudboekje-backup-${{ github.run_id }}
+          path: /tmp/huishoudboekje-backup/
+          include-hidden-files: true
+          retention-days: 30
+      - name: Controleer bestaande productie-deployment
+        run: |
+          cd /tmp/huishoudboekje-app
+          clasp deployments > /tmp/huishoudboekje-deployments.txt
+          grep -F 'AKfycbzprE325iYVqP1PZkuoi00uQoxSXugfAe6LVSV_wIC6WfLv3fLpiztX92Kv9c6mUvQb9w' /tmp/huishoudboekje-deployments.txt >/dev/null || { echo "Bestaande productie-deployment niet gevonden; niets gewijzigd"; exit 1; }
+      - name: Upload nieuwe backend en update dezelfde deployment
+        run: |
+          cp Code.gs /tmp/huishoudboekje-app/Code.gs
+          cd /tmp/huishoudboekje-app
+          clasp push -f
+          clasp deploy --deploymentId 'AKfycbzprE325iYVqP1PZkuoi00uQoxSXugfAe6LVSV_wIC6WfLv3fLpiztX92Kv9c6mUvQb9w' --description "Huishoudboekje ${GITHUB_SHA}"
