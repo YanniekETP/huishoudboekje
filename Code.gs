@@ -6,7 +6,7 @@ function doGet() {
  return HtmlService.createHtmlOutput(r.getContentText()).setTitle('Financiën Mandy & Yanniek').addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 function sheet_(name) {
- const ss=SpreadsheetApp.getActiveSpreadsheet();
+ const ss=SpreadsheetApp.openById('1VM1BM8eK0nZLpciFIab5DAgR3iHcGgyIXFjL8xWmLdk');
  if(!ss) throw new Error('Koppel dit Apps Script-project aan de juiste Google Spreadsheet.');
  const sh=ss.getSheetByName(name);
  if(!sh) throw new Error('Tabblad ontbreekt: '+name);
@@ -15,6 +15,7 @@ function sheet_(name) {
 function amount_(v) {
  if(typeof v==='number') return Number.isFinite(v)?v:NaN;
  let s=String(v??'').trim().replace(/[€\s]/g,'');
+ if(!s)return NaN;
  if(s.includes(',') && s.includes('.')) s=s.replace(/\./g,'').replace(',','.');
  else if(s.includes(',')) s=s.replace(',','.');
  return Number(s);
