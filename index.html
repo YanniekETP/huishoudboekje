@@ -1,0 +1,103 @@
+function doGet() {
+  // Haalt de nieuwste HTML/CSS/JS interface direct live op
+  var url = "https://raw.githubusercontent.com/yanniek-mandy/huishoudboekje/main/index.html";
+  
+  try {
+    var response = UrlFetchApp.fetch(url);
+    var htmlContent = response.getContentText();
+    return HtmlService.createHtmlOutput(htmlContent)
+      .setTitle('Financiën Mandy & Yanniek')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1');
+  } catch (e) {
+    // Fallback als de externe link nog niet is ingesteld
+    return HtmlService.createHtmlOutput("<h3>Webapp wordt geladen...</h3>");
+  }
+}
+
+// Deze functie blijft in Google Apps Script staan om de Sheet-data veilig op te halen
+function getCompleteFinancialData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  var overview = {
+    mandy: {
+      inkomen: 3600.00,
+      vasteLastenTotaal: 2708.74,
+      vrij: 891.26,
+      posten: [
+        { item: 'Zorgverzekering', bedrag: 156.45 },
+        { item: 'Auto', bedrag: 164.00 },
+        { item: 'DUO', bedrag: 73.54 },
+        { item: 'Telefoon', bedrag: 25.00 },
+        { item: 'Netflix', bedrag: 4.00 },
+        { item: 'Sportschool', bedrag: 75.00 },
+        { item: 'Eigen risico zorg', bedrag: 32.00 },
+        { item: 'Rechtsbijstand', bedrag: 3.75 },
+        { item: 'Inbreng En/of', bedrag: 1900.00 },
+        { item: 'Kleding', bedrag: 150.00 },
+        { item: 'Sparen', bedrag: 100.00 },
+        { item: 'Parkeervergunning', bedrag: 25.00 }
+      ]
+    },
+    yanniek: {
+      inkomen: 2908.00,
+      vasteLastenTotaal: 1943.50,
+      vrij: 964.50,
+      posten: [
+        { item: 'Spotify + Prime', bedrag: 12.00 },
+        { item: 'Sportschool', bedrag: 31.50 },
+        { item: 'Inbreng En/of', bedrag: 1900.00 }
+      ]
+    },
+    huis: { vasteLasten: 2356.80, totaalInbreng: 3796.80 }
+  };
+
+  var vasteLastenHuis = [
+    { item: 'Hypotheek netto', bedrag: 1639.00 },
+    { item: 'VVE', bedrag: 130.00 },
+    { item: 'Overlijdensverzekering', bedrag: 65.00 },
+    { item: 'GWL', bedrag: 192.00 },
+    { item: 'Gemeentebelasting', bedrag: 140.00 },
+    { item: 'Water', bedrag: 20.00 },
+    { item: 'Verzekeringen', bedrag: 20.80 },
+    { item: 'Schoonmaker', bedrag: 80.00 },
+    { item: 'Parkeervergunning', bedrag: 50.00 },
+    { item: 'Internet', bedrag: 20.00 }
+  ];
+
+  var uitgaven = [];
+  var totaalKosten = 0;
+  var sheet = ss.getSheetByName('Uitgaven') || ss.getSheets()[0];
+
+  if (sheet) {
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      var data = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+      for (var i = 0; i < data.length; i++) {
+        var item = data[i][0];
+        var kosten = parseFloat(data[i][1]);
+        if (item && !isNaN(kosten)) {
+          var aM = parseFloat(data[i][2]) || (kosten / 2);
+          var aY = parseFloat(data[i][3]) || (kosten / 2);
+          totaalKosten += kosten;
+          uitgaven.push({ item: item, kosten: kosten, aandeelMandy: aM, aandeelYanniek: aY });
+        }
+      }
+    }
+  }
+
+  return {
+    overview: overview,
+    vasteLastenHuis: vasteLastenHuis,
+    uitgaven: uitgaven,
+    totaalInboedelKosten: totaalKosten
+  };
+}
+
+function addInboedelUitgave(formObject) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Uitgaven') || ss.getSheets()[0];
+  var item = formObject.item;
+  var kosten = parseFloat(formObject.kosten);
+  sheet.appendRow([item, kosten, kosten / 2, kosten / 2]);
+  return getCompleteFinancialData();
+}
