@@ -23,8 +23,8 @@
     #tab-dashboard .person-card { min-width: 0; }
     @media (min-width: 1100px) {
       #tab-dashboard:not(.hidden) { display:grid; grid-template-columns:minmax(0, 2fr) minmax(300px, 1fr); gap:20px; align-items:start; }
-      #tab-dashboard > :first-child { grid-column:1 / -1; }
-      #tab-dashboard > :nth-child(2) { grid-column:1 / -1; }
+      #tab-dashboard > :first-child { grid-column:1; }
+      #tab-dashboard > :nth-child(2) { grid-column:2; }
       #tab-dashboard > :first-child > div { min-width:0; }
     }
   </style>
@@ -55,18 +55,6 @@
 
     <!-- OVERZICHT (SIDE BY SIDE) -->
     <div id="tab-dashboard" class="tab-content space-y-5">
-      <!-- En/of Inbreng -->
-      <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-5 sm:p-6 text-white shadow-md">
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="font-bold text-blue-100 text-sm">Maandelijkse storting en/of-rekening</h3>
-          <span class="text-xs text-blue-100">Per persoon · per maand</span>
-        </div>
-        <p class="text-3xl sm:text-4xl font-extrabold mb-1" id="inbrengPP">€ 0,00 p.p.</p><p class="text-xs text-blue-100 mb-3">Totaal gezamenlijk: <strong id="totaalInbreng">€ 0,00</strong> per maand</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-white/20 pt-3 text-blue-50">
-          <div>• Vaste lasten huis: <b class="text-white" id="huisVast">€ 0,00</b></div>
-          <div id="gezamenlijkOverig" class="col-span-2"></div><button type="button" onclick="openFixedEditor('gezamenlijk')" class="text-white underline font-semibold text-xs mt-2">Beheer posten</button>
-        </div>
-      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
         
         <!-- Mandy Links -->
@@ -80,6 +68,7 @@
             <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenMandy">€ 3.600,00</span></div>
             <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenMandy">- € 2.708,74</span></div>
             <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
+            <div class="flex items-center justify-between gap-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs"><span class="font-semibold text-blue-800">Storting en/of · p/m</span><strong id="stortingMandy" class="text-blue-800 whitespace-nowrap">€ 0,00</strong></div>
             <div id="postenMandy" class="space-y-1 text-xs sm:text-sm text-slate-600 "></div><button type="button" onclick="openFixedEditor('mandy')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
           </div>
         </div>
@@ -95,12 +84,25 @@
             <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenYanniek">€ 2.908,00</span></div>
             <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenYanniek">- € 1.943,50</span></div>
             <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
+            <div class="flex items-center justify-between gap-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs"><span class="font-semibold text-blue-800">Storting en/of · p/m</span><strong id="stortingYanniek" class="text-blue-800 whitespace-nowrap">€ 0,00</strong></div>
             <div id="postenYanniek" class="space-y-1 text-xs sm:text-sm text-slate-600 "></div><button type="button" onclick="openFixedEditor('yanniek')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
           </div>
         </div>
 
       </div>
 
+      <!-- En/of Inbreng -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="font-bold text-slate-900 text-sm">Gezamenlijke En/of Inbreng</h3>
+          <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full"><span id="inbrengPP">€ 0,00 p.p.</span></span>
+        </div>
+        <p class="text-2xl font-extrabold text-slate-900 mb-3" id="totaalInbreng">€ 0,00</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3 text-slate-600">
+          <div>• Vaste lasten huis: <b class="text-slate-900" id="huisVast">€ 0,00</b></div>
+          <div id="gezamenlijkOverig" class="col-span-2"></div><button type="button" onclick="openFixedEditor('gezamenlijk')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
+        </div>
+      </div>
     </div>
 
     <!-- HUIS TAB -->
@@ -309,6 +311,8 @@
         renderRows('posten'+cap,p.posten,'bedrag');
       }
       const huis=data.overview.huis;
+      document.getElementById('stortingMandy').textContent=formatCurrency(huis.totaalInbreng/2);
+      document.getElementById('stortingYanniek').textContent=formatCurrency(huis.totaalInbreng/2);
       document.getElementById('totaalInbreng').textContent=formatCurrency(huis.totaalInbreng);
       document.getElementById('inbrengPP').textContent=formatCurrency(huis.totaalInbreng/2)+' p.p. (begroot)';
       document.getElementById('huisVast').textContent=formatCurrency(huis.vasteLasten);
