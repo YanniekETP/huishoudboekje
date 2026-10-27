@@ -1,0 +1,10 @@
+const fs=require('node:fs');const assert=require('node:assert/strict');const vm=require('node:vm');
+const backend=fs.readFileSync('Code.gs','utf8');const html=fs.readFileSync('index.html','utf8');
+assert.match(backend,/function doGet\(/);
+assert.match(backend,/function getDashboardData\(/);
+assert.match(html,/withFailureHandler/);
+assert.match(html,/setTimeout/);
+const inline=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
+assert.ok(inline.length,'Inline JavaScript ontbreekt');
+for(const [,script] of inline)new vm.Script(script);
+console.log('Starter smoke tests OK');
