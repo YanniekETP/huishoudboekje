@@ -23,6 +23,7 @@ jobs:
         run: |
           cp Code.gs /tmp/huishoudboekje-check.js
           node --check /tmp/huishoudboekje-check.js
+          node tests/backend.test.cjs
       - name: Google-autorisatie voor clasp
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
