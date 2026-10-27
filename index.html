@@ -1,103 +1,225 @@
-function doGet() {
-  // Haalt de nieuwste HTML/CSS/JS interface direct live op
-  var url = "https://raw.githubusercontent.com/yanniek-mandy/huishoudboekje/main/index.html";
-  
-  try {
-    var response = UrlFetchApp.fetch(url);
-    var htmlContent = response.getContentText();
-    return HtmlService.createHtmlOutput(htmlContent)
-      .setTitle('Financiën Mandy & Yanniek')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1');
-  } catch (e) {
-    // Fallback als de externe link nog niet is ingesteld
-    return HtmlService.createHtmlOutput("<h3>Webapp wordt geladen...</h3>");
-  }
-}
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <base target="_top">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+    .nav-active { color: #2563eb; font-weight: 700; }
+    .loader { border-top-color: #2563eb; animation: spinner 0.8s linear infinite; }
+    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="text-slate-800 antialiased pb-24">
 
-// Deze functie blijft in Google Apps Script staan om de Sheet-data veilig op te halen
-function getCompleteFinancialData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  var overview = {
-    mandy: {
-      inkomen: 3600.00,
-      vasteLastenTotaal: 2708.74,
-      vrij: 891.26,
-      posten: [
-        { item: 'Zorgverzekering', bedrag: 156.45 },
-        { item: 'Auto', bedrag: 164.00 },
-        { item: 'DUO', bedrag: 73.54 },
-        { item: 'Telefoon', bedrag: 25.00 },
-        { item: 'Netflix', bedrag: 4.00 },
-        { item: 'Sportschool', bedrag: 75.00 },
-        { item: 'Eigen risico zorg', bedrag: 32.00 },
-        { item: 'Rechtsbijstand', bedrag: 3.75 },
-        { item: 'Inbreng En/of', bedrag: 1900.00 },
-        { item: 'Kleding', bedrag: 150.00 },
-        { item: 'Sparen', bedrag: 100.00 },
-        { item: 'Parkeervergunning', bedrag: 25.00 }
-      ]
-    },
-    yanniek: {
-      inkomen: 2908.00,
-      vasteLastenTotaal: 1943.50,
-      vrij: 964.50,
-      posten: [
-        { item: 'Spotify + Prime', bedrag: 12.00 },
-        { item: 'Sportschool', bedrag: 31.50 },
-        { item: 'Inbreng En/of', bedrag: 1900.00 }
-      ]
-    },
-    huis: { vasteLasten: 2356.80, totaalInbreng: 3796.80 }
-  };
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30">
+    <div class="max-w-2xl mx-auto px-5 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-bold text-slate-900 leading-tight">Financiën</h1>
+        <p class="text-xs text-slate-400 font-medium">Mandy & Yanniek</p>
+      </div>
+      <div class="flex -space-x-2">
+        <div class="w-8 h-8 rounded-full bg-pink-100 border-2 border-white flex items-center justify-center text-xs font-bold text-pink-600">M</div>
+        <div class="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-xs font-bold text-blue-600">Y</div>
+      </div>
+    </div>
+  </header>
 
-  var vasteLastenHuis = [
-    { item: 'Hypotheek netto', bedrag: 1639.00 },
-    { item: 'VVE', bedrag: 130.00 },
-    { item: 'Overlijdensverzekering', bedrag: 65.00 },
-    { item: 'GWL', bedrag: 192.00 },
-    { item: 'Gemeentebelasting', bedrag: 140.00 },
-    { item: 'Water', bedrag: 20.00 },
-    { item: 'Verzekeringen', bedrag: 20.80 },
-    { item: 'Schoonmaker', bedrag: 80.00 },
-    { item: 'Parkeervergunning', bedrag: 50.00 },
-    { item: 'Internet', bedrag: 20.00 }
-  ];
+  <!-- Laadscherm -->
+  <div id="loading" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-md">
+    <div class="loader rounded-full border-4 border-slate-200 h-10 w-10 mb-3"></div>
+    <p class="text-xs font-semibold text-slate-500">Gegevens ophalen...</p>
+  </div>
 
-  var uitgaven = [];
-  var totaalKosten = 0;
-  var sheet = ss.getSheetByName('Uitgaven') || ss.getSheets()[0];
+  <main class="max-w-2xl mx-auto px-4 mt-5">
 
-  if (sheet) {
-    var lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      var data = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
-      for (var i = 0; i < data.length; i++) {
-        var item = data[i][0];
-        var kosten = parseFloat(data[i][1]);
-        if (item && !isNaN(kosten)) {
-          var aM = parseFloat(data[i][2]) || (kosten / 2);
-          var aY = parseFloat(data[i][3]) || (kosten / 2);
-          totaalKosten += kosten;
-          uitgaven.push({ item: item, kosten: kosten, aandeelMandy: aM, aandeelYanniek: aY });
-        }
-      }
+    <!-- OVERZICHT (SIDE BY SIDE) -->
+    <div id="tab-dashboard" class="tab-content space-y-5">
+      <div class="grid grid-cols-2 gap-3">
+        
+        <!-- Mandy Links -->
+        <div class="space-y-3">
+          <div class="bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl p-4 text-white shadow-sm">
+            <span class="text-xs font-semibold text-pink-100">Mandy</span>
+            <p class="text-xs text-pink-100 mt-2">Vrij te besteden</p>
+            <p class="text-2xl font-extrabold" id="vrijMandy">€ 891,26</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm space-y-2 text-xs">
+            <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenMandy">€ 3.600,00</span></div>
+            <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenMandy">- € 2.708,74</span></div>
+            <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
+            <div id="postenMandy" class="space-y-1 text-[11px] text-slate-600 max-h-48 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- Yanniek Rechts -->
+        <div class="space-y-3">
+          <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-4 text-white shadow-sm">
+            <span class="text-xs font-semibold text-blue-100">Yanniek</span>
+            <p class="text-xs text-blue-100 mt-2">Vrij te besteden</p>
+            <p class="text-2xl font-extrabold" id="vrijYanniek">€ 964,50</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-blue-100 shadow-sm space-y-2 text-xs">
+            <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenYanniek">€ 2.908,00</span></div>
+            <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenYanniek">- € 1.943,50</span></div>
+            <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
+            <div id="postenYanniek" class="space-y-1 text-[11px] text-slate-600 max-h-48 overflow-y-auto"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- En/of Inbreng -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="font-bold text-slate-900 text-sm">Gezamenlijke En/of Inbreng</h3>
+          <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">€ 1.898,40 p.p.</span>
+        </div>
+        <p class="text-2xl font-extrabold text-slate-900 mb-3" id="totaalInbreng">€ 3.796,80</p>
+        <div class="grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3 text-slate-600">
+          <div>• Vaste lasten huis: <b class="text-slate-900">€ 2.356,80</b></div>
+          <div>• Sparen: <b class="text-slate-900">€ 600,00</b></div>
+          <div>• Eten & Boodschappen: <b class="text-slate-900">€ 640,00</b></div>
+          <div>• Vakantie: <b class="text-slate-900">€ 200,00</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUIS TAB -->
+    <div id="tab-huis" class="tab-content hidden space-y-4">
+      <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-sm">
+        <p class="text-xs font-medium text-slate-400">Totaal Vaste Lasten Huis</p>
+        <p class="text-3xl font-extrabold mt-1">€ 2.356,80</p>
+        <p class="text-xs text-slate-400 mt-1">Per persoon: € 1.178,40 / mnd</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <h3 class="font-bold text-slate-900 text-sm mb-4">Specificatie Koophuis</h3>
+        <div id="lijstHuisLasten" class="space-y-2 text-sm"></div>
+      </div>
+    </div>
+
+    <!-- INBOEDEL TAB -->
+    <div id="tab-inboedel" class="tab-content hidden space-y-4">
+      <div class="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
+        <p class="text-xs font-medium text-emerald-100">Totale Inboedelkosten (50/50)</p>
+        <p class="text-3xl font-extrabold mt-1" id="totaalInboedel">€ 0,00</p>
+        <p class="text-xs text-emerald-100 mt-1" id="aandeelInboedelPP">€ 0,00 per persoon</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <h3 class="font-bold text-slate-900 text-sm mb-3">Nieuwe Aankoop Toevoegen</h3>
+        <form id="inboedelForm" class="space-y-3">
+          <input type="text" id="item" placeholder="Item (bijv. Bed, Droger)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none" required>
+          <input type="number" step="0.01" id="kosten" placeholder="Bedrag (€)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none" required>
+          <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-sm">Opslaan in Sheet</button>
+        </form>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <h3 class="font-bold text-slate-900 text-sm mb-3">Geregistreerde Items</h3>
+        <div id="lijstInboedel" class="space-y-2"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Navigatie -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 py-2.5 z-30">
+    <div class="max-w-2xl mx-auto flex justify-around text-center text-[11px] font-medium text-slate-400">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center nav-active">📊<span class="mt-1">Overzicht</span></button>
+      <button onclick="switchTab('huis')" id="nav-huis" class="flex flex-col items-center">🏡<span class="mt-1">Huis</span></button>
+      <button onclick="switchTab('inboedel')" id="nav-inboedel" class="flex flex-col items-center">🛋️<span class="mt-1">Inboedel</span></button>
+    </div>
+  </nav>
+
+  <script>
+    const formatCurrency = (amount) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('nav button').forEach(el => el.classList.remove('nav-active'));
+      document.getElementById('tab-' + tabName).classList.remove('hidden');
+      document.getElementById('nav-' + tabName).classList.add('nav-active');
     }
-  }
 
-  return {
-    overview: overview,
-    vasteLastenHuis: vasteLastenHuis,
-    uitgaven: uitgaven,
-    totaalInboedelKosten: totaalKosten
-  };
-}
+    function renderData(data) {
+      document.getElementById('vrijMandy').innerText = formatCurrency(data.overview.mandy.vrij);
+      document.getElementById('inkomenMandy').innerText = formatCurrency(data.overview.mandy.inkomen);
+      document.getElementById('vasteLastenMandy').innerText = `- ${formatCurrency(data.overview.mandy.vasteLastenTotaal)}`;
 
-function addInboedelUitgave(formObject) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Uitgaven') || ss.getSheets()[0];
-  var item = formObject.item;
-  var kosten = parseFloat(formObject.kosten);
-  sheet.appendRow([item, kosten, kosten / 2, kosten / 2]);
-  return getCompleteFinancialData();
-}
+      const postenMandyEl = document.getElementById('postenMandy');
+      postenMandyEl.innerHTML = '';
+      data.overview.mandy.posten.forEach(p => {
+        postenMandyEl.innerHTML += `<div class="flex justify-between py-0.5"><span class="truncate pr-1">${p.item}</span><span class="font-medium text-slate-800">${formatCurrency(p.bedrag)}</span></div>`;
+      });
+
+      document.getElementById('vrijYanniek').innerText = formatCurrency(data.overview.yanniek.vrij);
+      document.getElementById('inkomenYanniek').innerText = formatCurrency(data.overview.yanniek.inkomen);
+      document.getElementById('vasteLastenYanniek').innerText = `- ${formatCurrency(data.overview.yanniek.vasteLastenTotaal)}`;
+
+      const postenYanniekEl = document.getElementById('postenYanniek');
+      postenYanniekEl.innerHTML = '';
+      data.overview.yanniek.posten.forEach(p => {
+        postenYanniekEl.innerHTML += `<div class="flex justify-between py-0.5"><span class="truncate pr-1">${p.item}</span><span class="font-medium text-slate-800">${formatCurrency(p.bedrag)}</span></div>`;
+      });
+
+      document.getElementById('totaalInbreng').innerText = formatCurrency(data.overview.huis.totaalInbreng);
+
+      const huisLijst = document.getElementById('lijstHuisLasten');
+      huisLijst.innerHTML = '';
+      data.vasteLastenHuis.forEach(row => {
+        huisLijst.innerHTML += `<div class="flex justify-between py-1.5 border-b border-slate-50 last:border-0"><span class="text-slate-600">${row.item}</span><span class="font-bold text-slate-900">${formatCurrency(row.bedrag)}</span></div>`;
+      });
+
+      document.getElementById('totaalInboedel').innerText = formatCurrency(data.totaalInboedelKosten);
+      document.getElementById('aandeelInboedelPP').innerText = `${formatCurrency(data.totaalInboedelKosten / 2)} per persoon`;
+
+      const inboedelLijst = document.getElementById('lijstInboedel');
+      inboedelLijst.innerHTML = '';
+      if(data.uitgaven.length === 0) {
+        inboedelLijst.innerHTML = '<p class="text-xs text-slate-400 py-2">Nog geen items opgeslagen.</p>';
+      } else {
+        data.uitgaven.forEach(row => {
+          inboedelLijst.innerHTML += `<div class="flex justify-between py-1.5 border-b border-slate-50 last:border-0"><div><p class="font-bold text-slate-900 text-xs">${row.item}</p></div><span class="font-extrabold text-slate-900 text-xs">${formatCurrency(row.kosten)}</span></div>`;
+        });
+      }
+
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function handleError(err) {
+      document.getElementById('loading').style.display = 'none';
+      alert('Er is een fout opgetreden: ' + err.message);
+    }
+
+    window.onload = function() {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(renderData)
+          .withFailureHandler(handleError)
+          .getCompleteFinancialData();
+      } else {
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    document.getElementById('inboedelForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      document.getElementById('loading').style.display = 'flex';
+      
+      const formData = {
+        item: document.getElementById('item').value,
+        kosten: document.getElementById('kosten').value
+      };
+
+      google.script.run
+        .withSuccessHandler(function(newData) {
+          renderData(newData);
+          document.getElementById('inboedelForm').reset();
+        })
+        .withFailureHandler(handleError)
+        .addInboedelUitgave(formData);
+    });
+  </script>
+</body>
+</html>
