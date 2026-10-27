@@ -22,21 +22,22 @@ function amount_(v) {
 }
 function round_(v){return Math.round((v+Number.EPSILON)*100)/100;}
 function personal_(name) {
- const rows=sheet_(name).getRange('A1:B40').getValues(),posten=[];let inkomen=0;
- rows.forEach(r=>{const item=String(r[0]||'').trim(),bedrag=amount_(r[1]);if(!item||!Number.isFinite(bedrag))return;
- if(/^netto inkomen$/i.test(item)) inkomen=bedrag;
- else if(!/^(ingevulde maandlasten|vrij te besteden|voorlopig over|nog in te vullen)$/i.test(item))posten.push({item,bedrag});
+ const rows=sheet_(name).getRange('A4:B15').getValues(),posten=[];
+ rows.forEach((r,i)=>{
+  const item=String(r[0]||'').trim(),bedrag=amount_(r[1]);
+  if(item&&Number.isFinite(bedrag))posten.push({row:i+4,item,bedrag});
  });
- const vasteLastenTotaal=round_(posten.reduce((s,p)=>s+p.bedrag,0));
+ const income=sheet_(name).getRange('B17').getValue(),inkomen=Number.isFinite(amount_(income))?amount_(income):0;
+ const vasteLastenTotaal=round_(posten.reduce((sum,p)=>sum+p.bedrag,0));
  return {inkomen,vasteLastenTotaal,vrij:round_(inkomen-vasteLastenTotaal),posten};
 }
 function getCompleteFinancialData() {
  const mandy=personal_('Vaste lasten Mandy'),yanniek=personal_('Vaste lasten Yanniek');
  const houseRows=sheet_('Vaste lasten koophuis').getRange('F7:G16').getValues();
- const vasteLastenHuis=houseRows.filter(r=>r[0]&&Number.isFinite(amount_(r[1]))&&!/^(totaal samen|per persoon|eigenwoningforfait|ozb)/i.test(String(r[0]))).slice(0,10).map(r=>({item:String(r[0]),bedrag:amount_(r[1])}));
+ const vasteLastenHuis=houseRows.map((r,i)=>({row:i+7,item:String(r[0]||'').trim(),bedrag:amount_(r[1])})).filter(r=>r.item&&Number.isFinite(r.bedrag));
  const vasteLasten=round_(vasteLastenHuis.reduce((s,p)=>s+p.bedrag,0));
  const budgetRows=sheet_('Vaste lasten koophuis').getRange('J7:K16').getValues();
- const gezamenlijkePosten=budgetRows.filter(r=>String(r[0]||'').trim()&&Number.isFinite(amount_(r[1]))).map(r=>({item:String(r[0]).trim(),bedrag:amount_(r[1])}));
+ const gezamenlijkePosten=budgetRows.map((r,i)=>({row:i+7,item:String(r[0]||'').trim(),bedrag:amount_(r[1])})).filter(r=>r.item&&Number.isFinite(r.bedrag));
  const inbreng=round_(gezamenlijkePosten.reduce((sum,p)=>sum+p.bedrag,0));
  const sh=sheet_('Uitgaven'),totalRow=findInboedelTotalRow_(sh),rows=sh.getRange(1,1,totalRow-1,4).getValues(),uitgaven=[];
  rows.forEach((r,i)=>{
@@ -116,3 +117,54 @@ function deleteInboedelUitgave(row) {
  } finally {lock.releaseLock();}
  return getCompleteFinancialData();
 }
+
+/** Editable fixed-cost ranges. Summary rows and formulas are never writable. */
+const FIXED_COST_AREAS_={
+ mandy:{sheet:'Vaste lasten Mandy',first:4,last:15,nameCol:1,valueCol:2},
+ yanniek:{sheet:'Vaste lasten Yanniek',first:4,last:15,nameCol:1,valueCol:2},
+ huis:{sheet:'Vaste lasten koophuis',first:7,last:16,nameCol:6,valueCol:7},
+ gezamenlijk:{sheet:'Vaste lasten koophuis',first:8,last:16,nameCol:10,valueCol:11}
+};
+function fixedArea_(area) {
+ if(!Object.prototype.hasOwnProperty.call(FIXED_COST_AREAS_,area))throw new Error('Onbekende categorie vaste lasten.');
+ return FIXED_COST_AREAS_[area];
+}
+function fixedValue_(form) {
+ if(!form||typeof form!=='object')throw new Error('Ongeldige invoer.');
+ const item=String(form.item??'').trim(),raw=form.bedrag,bedrag=amount_(raw);
+ if(!item||item.length>150||/^[=+@]/.test(item)||/[\r\n]/.test(item))throw new Error('Vul een geldige omschrijving in.');
+ if(raw===''||raw===null||raw===undefined||!Number.isFinite(bedrag)||bedrag<0||bedrag>1000000)throw new Error('Vul een geldig maandbedrag in.');
+ return {item,bedrag:round_(bedrag)};
+}
+function fixedCostMutation_(action,area,row,form,expected) {
+ const config=fixedArea_(area);
+ const value=action==='delete'?null:fixedValue_(form);
+ const n=Number(row),lock=LockService.getScriptLock();
+ lock.waitLock(10000);
+ try {
+  const sh=sheet_(config.sheet);
+  const range=sh.getRange(config.first,config.nameCol,config.last-config.first+1,config.valueCol-config.nameCol+1);
+  const all=range.getValues();
+  let index;
+  if(action==='add'){
+   index=all.findIndex(r=>r[0]===''&&r[config.valueCol-config.nameCol]==='');
+   if(index<0)throw new Error('Geen vrije regels meer in deze categorie. Breid eerst de spreadsheetstructuur uit.');
+  }else{
+   if(!Number.isInteger(n)||n<config.first||n>config.last)throw new Error('Ongeldige of beschermde rij.');
+   index=n-config.first;
+   const current=all[index];
+   if(!String(current[0]||'').trim()||!Number.isFinite(amount_(current[config.valueCol-config.nameCol])))throw new Error('Post bestaat niet meer; ververs de pagina.');
+   if(!expected||String(current[0])!==String(expected.item)||round_(amount_(current[config.valueCol-config.nameCol]))!==round_(amount_(expected.bedrag)))throw new Error('Deze post is ondertussen gewijzigd. Ververs de pagina voordat je opnieuw opslaat.');
+  }
+  const targetRow=config.first+index;
+  const nameCell=sh.getRange(targetRow,config.nameCol),amountCell=sh.getRange(targetRow,config.valueCol);
+  if(nameCell.getFormula()||amountCell.getFormula())throw new Error('Deze rij bevat een formule en is beschermd.');
+  if(action==='delete'){nameCell.clearContent();amountCell.clearContent();}
+  else{nameCell.setValue(value.item);amountCell.setValue(value.bedrag);}
+  SpreadsheetApp.flush();
+ }finally{lock.releaseLock();}
+ return getCompleteFinancialData();
+}
+function addFixedCost(area,form){return fixedCostMutation_('add',area,null,form,null);}
+function updateFixedCost(area,row,form,expected){return fixedCostMutation_('update',area,row,form,expected);}
+function deleteFixedCost(area,row,expected){return fixedCostMutation_('delete',area,row,null,expected);}
