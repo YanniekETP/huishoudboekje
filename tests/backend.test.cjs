@@ -18,6 +18,8 @@ function makeSheet(){
     getValues(){return sh.cells.slice(row-1,row-1+numRows).map(r=>r.slice(col-1,col-1+numCols));},
     setValues(v){v.forEach((r,i)=>r.forEach((x,j)=>sh.cells[row-1+i][col-1+j]=x));},
     setFormulas(v){this.setValues(v);},
+    setFormula(v){this.setValues([[v]]);},
+    setValue(v){this.setValues([[v]]);},
     clearContent(){for(let i=0;i<numRows;i++)for(let j=0;j<numCols;j++)sh.cells[row-1+i][col-1+j]='';},
     copyTo(dest){const vals=this.getValues();dest.setValues(vals);},
    };
@@ -56,4 +58,8 @@ ctx.deleteInboedelUitgave(50);
 assert.equal(sh.cells[49][0],'');
 assert.equal(sh.cells[50][0],'Totaal bekende aankopen');
 assert.throws(()=>ctx.deleteInboedelUitgave(51));
+assert.equal(sh.cells[49][5],'');
+assert.equal(sh.cells[49][8],'');
+assert.throws(()=>ctx.validateInboedel_({item:'Lamp',kosten:10,betaaldDoor:'enof',percentageMandy:120}));
+assert.equal(ctx.validateInboedel_({item:'Lamp',kosten:10,betaaldDoor:'mandy',percentageMandy:70}).percentageMandy,70);
 console.log('Backend tests passed: validation, add, delete, overflow, formula preservation, totals');
