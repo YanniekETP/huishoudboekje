@@ -70,7 +70,6 @@
             <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenMandy">€ 3.600,00</span></div>
             <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenMandy">- € 2.708,74</span></div>
             <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
-            <div class="flex items-center justify-between gap-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs"><span class="font-semibold text-blue-800">Storting en/of · p/m</span><strong id="stortingMandy" class="text-blue-800 whitespace-nowrap">€ 0,00</strong></div>
             <div id="postenMandy" class="space-y-1 text-xs sm:text-sm text-slate-600 "></div><button type="button" onclick="openFixedEditor('mandy')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
           </div>
         </div>
@@ -86,7 +85,6 @@
             <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenYanniek">€ 2.908,00</span></div>
             <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenYanniek">- € 1.943,50</span></div>
             <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
-            <div class="flex items-center justify-between gap-3 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs"><span class="font-semibold text-blue-800">Storting en/of · p/m</span><strong id="stortingYanniek" class="text-blue-800 whitespace-nowrap">€ 0,00</strong></div>
             <div id="postenYanniek" class="space-y-1 text-xs sm:text-sm text-slate-600 "></div><button type="button" onclick="openFixedEditor('yanniek')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
           </div>
         </div>
@@ -310,14 +308,9 @@
         document.getElementById('vrij'+cap).textContent=formatCurrency(p.vrij);
         document.getElementById('inkomen'+cap).textContent=formatCurrency(p.inkomen);
         document.getElementById('vasteLasten'+cap).textContent='- '+formatCurrency(p.vasteLastenTotaal);
-        renderRows('posten'+cap,p.posten.filter(post=>{const label=String(post.item||'').toLowerCase();return !((label.includes('storting')||label.includes('inbreng'))&&(label.includes('en/of')||label.includes('gezamenlijk')));}), 'bedrag');
+        renderRows('posten'+cap,p.posten,'bedrag');
       }
       const huis=data.overview.huis;
-      for (const name of ['mandy','yanniek']) {
-        const cap=name==='mandy'?'Mandy':'Yanniek';
-        const post=(data.overview[name].posten||[]).find(p=>/storting/i.test(String(p.item||'')) && /(gezamenlijk|en\\/?of)/i.test(String(p.item||'')));
-        document.getElementById('storting'+cap).textContent=formatCurrency(post?post.bedrag:huis.totaalInbreng/2);
-      }
       document.getElementById('totaalInbreng').textContent=formatCurrency(huis.totaalInbreng);
       document.getElementById('inbrengPP').textContent=formatCurrency(huis.totaalInbreng/2)+' p.p. (begroot)';
       document.getElementById('huisVast').textContent=formatCurrency(huis.vasteLasten);
