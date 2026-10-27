@@ -39,14 +39,16 @@ function getCompleteFinancialData() {
  const budgetRows=sheet_('Vaste lasten koophuis').getRange('J7:K16').getValues();
  const gezamenlijkePosten=budgetRows.map((r,i)=>({row:i+7,item:String(r[0]||'').trim(),bedrag:amount_(r[1])})).filter(r=>r.item&&Number.isFinite(r.bedrag));
  const inbreng=round_(gezamenlijkePosten.reduce((sum,p)=>sum+p.bedrag,0));
- const sh=sheet_('Uitgaven'),totalRow=findInboedelTotalRow_(sh),rows=sh.getRange(1,1,totalRow-1,4).getValues(),uitgaven=[];
+ const sh=sheet_('Uitgaven'),totalRow=findInboedelTotalRow_(sh),rows=sh.getRange(1,1,totalRow-1,9).getValues(),uitgaven=[];
  rows.forEach((r,i)=>{
   if(i<5)return;
   const item=String(r[0]||'').trim(),kosten=amount_(r[1]);
   if(!item||!Number.isFinite(kosten)||kosten<=0)return;
   const m=r[2]===''?round_(kosten/2):amount_(r[2]);
   const y=r[3]===''?round_(kosten-m):amount_(r[3]);
-  uitgaven.push({row:i+1,item,kosten,aandeelMandy:m,aandeelYanniek:y});
+  const betaaldDoor=String(r[5]||'').trim()||'onbekend';
+  const percentageMandy=r[8]===''?50:amount_(r[8]);
+  uitgaven.push({row:i+1,item,kosten,aandeelMandy:m,aandeelYanniek:y,betaaldDoor,percentageMandy:Number.isFinite(percentageMandy)?percentageMandy:50});
  });
  return {overview:{mandy,yanniek,huis:{vasteLasten,totaalInbreng:inbreng}},vasteLastenHuis,gezamenlijkePosten,uitgaven,totaalInboedelKosten:round_(uitgaven.reduce((s,p)=>s+p.kosten,0)),aandeelMandy:round_(uitgaven.reduce((s,p)=>s+p.aandeelMandy,0)),aandeelYanniek:round_(uitgaven.reduce((s,p)=>s+p.aandeelYanniek,0))};
 }
@@ -66,7 +68,11 @@ function validateInboedel_(form) {
  if(!form||typeof form!=='object')throw new Error('Ongeldige invoer.');
  const item=String(form.item??'').trim(),kosten=amount_(form.kosten);
  if(!item||item.length>200||!Number.isFinite(kosten)||kosten<=0||kosten>1000000)throw new Error('Vul een geldige omschrijving en positief bedrag in.');
- return {item,kosten:round_(kosten)};
+ const betaaldDoor=String(form.betaaldDoor||'onbekend').trim();
+ if(!['enof','mandy','yanniek','onbekend'].includes(betaaldDoor))throw new Error('Ongeldige betaalrekening.');
+ const percentageMandy=form.percentageMandy===undefined?50:Number(form.percentageMandy);
+ if(!Number.isFinite(percentageMandy)||percentageMandy<0||percentageMandy>100)throw new Error('Verdeling moet tussen 0 en 100% liggen.');
+ return {item,kosten:round_(kosten),betaaldDoor,percentageMandy};
 }
 function inboedelLock_(){return LockService.getScriptLock();}
 function addInboedelUitgave(form) {
@@ -97,6 +103,7 @@ function addInboedelUitgave(form) {
   const target=sh.getRange(row,1,1,2);
   if(target.getValues()[0].some(v=>v!==''))throw new Error('Doelrij is niet leeg; opslaan gestopt.');
   target.setValues([[value.item,value.kosten]]);
+  writeInboedelVerdeling_(sh,row,value);
   SpreadsheetApp.flush();
  } finally {lock.releaseLock();}
  return getCompleteFinancialData();
@@ -113,6 +120,9 @@ function deleteInboedelUitgave(row) {
   if(!String(values[0]||'').trim()||!Number.isFinite(amount_(values[1])))throw new Error('Aankoop bestaat niet meer. Vernieuw de pagina.');
   // Wis alleen invoercellen A:B; laat C:E-formules en de totaalregel intact.
   target.clearContent();
+  sh.getRange(n,6).clearContent();
+  sh.getRange(n,9).clearContent();
+  restoreInboedelFormulas_(sh,n);
   SpreadsheetApp.flush();
  } finally {lock.releaseLock();}
  return getCompleteFinancialData();
@@ -168,3 +178,29 @@ function fixedCostMutation_(action,area,row,form,expected) {
 function addFixedCost(area,form){return fixedCostMutation_('add',area,null,form,null);}
 function updateFixedCost(area,row,form,expected){return fixedCostMutation_('update',area,row,form,expected);}
 function deleteFixedCost(area,row,expected){return fixedCostMutation_('delete',area,row,null,expected);}
+
+function restoreInboedelFormulas_(sh,row){
+ sh.getRange(row,3).setFormula('=IF(AND(A'+row+'<>"";ISNUMBER(B'+row+'));ROUND(B'+row+'*IF(ISNUMBER(I'+row+');I'+row+';50)/100;2);"")');
+ sh.getRange(row,4).setFormula('=IF(ISNUMBER(C'+row+');B'+row+'-C'+row+';"")');
+}
+function writeInboedelVerdeling_(sh,row,value){
+ sh.getRange(row,6).setValue(value.betaaldDoor);
+ sh.getRange(row,9).setValue(value.percentageMandy);
+ restoreInboedelFormulas_(sh,row);
+}
+function updateInboedelVerdeling(row,form,expected){
+ const n=Number(row);
+ if(!Number.isInteger(n))throw new Error('Ongeldige aankooprij.');
+ const value=validateInboedel_(form),lock=inboedelLock_();
+ lock.waitLock(10000);
+ try{
+  const sh=sheet_('Uitgaven'),totalRow=findInboedelTotalRow_(sh);
+  if(n<6||n>=totalRow)throw new Error('Deze aankooprij is beschermd.');
+  const old=sh.getRange(n,1,1,2).getValues()[0];
+  if(!expected||String(old[0]).trim()!==String(expected.item).trim()||round_(amount_(old[1]))!==round_(amount_(expected.kosten)))throw new Error('Aankoop is gewijzigd; vernieuw eerst de pagina.');
+  sh.getRange(n,1,1,2).setValues([[value.item,value.kosten]]);
+  writeInboedelVerdeling_(sh,n,value);
+  SpreadsheetApp.flush();
+ }finally{lock.releaseLock();}
+ return getCompleteFinancialData();
+}
