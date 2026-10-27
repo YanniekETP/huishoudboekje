@@ -17,6 +17,7 @@ function makeSheet(){
     getDisplayValues(){return sh.cells.slice(row-1,row-1+numRows).map(r=>r.slice(col-1,col-1+numCols));},
     getValues(){return sh.cells.slice(row-1,row-1+numRows).map(r=>r.slice(col-1,col-1+numCols));},
     setValues(v){v.forEach((r,i)=>r.forEach((x,j)=>sh.cells[row-1+i][col-1+j]=x));},
+    setFormulas(v){this.setValues(v);},
     clearContent(){for(let i=0;i<numRows;i++)for(let j=0;j<numCols;j++)sh.cells[row-1+i][col-1+j]='';},
     copyTo(dest){const vals=this.getValues();dest.setValues(vals);},
    };
@@ -41,4 +42,18 @@ assert.equal(sh.cells[49][0],'Totaal bekende aankopen');
 assert.throws(()=>ctx.deleteInboedelUitgave(50));
 assert.throws(()=>ctx.deleteInboedelUitgave(5));
 assert.equal(sh.cells[5][0],'Bed');
-console.log('Backend tests passed: validation, add, delete, formulas, totals');
+// Exhaust all available purchase rows and ensure a new row is inserted safely.
+for(let row=7;row<=49;row++){sh.cells[row-1][0]='Test '+row;sh.cells[row-1][1]=row;}
+ctx.addInboedelUitgave({item:'Overflow',kosten:12.34});
+assert.equal(ctx.findInboedelTotalRow_(sh),51);
+assert.equal(sh.cells[49][0],'Overflow');
+assert.equal(sh.cells[49][1],12.34);
+assert.equal(sh.cells[50][0],'Totaal bekende aankopen');
+assert.equal(sh.cells[50][1],'=SUM(B6:B50)');
+assert.equal(sh.cells[50][2],'=SUM(C6:C50)');
+assert.equal(sh.cells[50][3],'=SUM(D6:D50)');
+ctx.deleteInboedelUitgave(50);
+assert.equal(sh.cells[49][0],'');
+assert.equal(sh.cells[50][0],'Totaal bekende aankopen');
+assert.throws(()=>ctx.deleteInboedelUitgave(51));
+console.log('Backend tests passed: validation, add, delete, overflow, formula preservation, totals');
