@@ -1,0 +1,41 @@
+name: Deploy Apps Script
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['Code.gs', 'index.html', 'tests/**', '.github/workflows/deploy.yml']
+permissions:
+  contents: read
+concurrency:
+  group: apps-script-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Validate
+        run: |
+          cp Code.gs /tmp/et-code.js
+          node --check /tmp/et-code.js
+          node tests/smoke.test.cjs
+      - name: Configure clasp
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
+        run: |
+          test -n "$CLASPRC_JSON" && test -n "$SCRIPT_ID" && test -n "$DEPLOYMENT_ID"
+          umask 077
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          printf '{"scriptId":"%s"}\n' "$SCRIPT_ID" > .clasp.json
+          npm install --global @google/clasp@latest
+          clasp pull
+          test -f appsscript.json
+          cp Code.gs Code.js
+          rm Code.gs
+          clasp push -f
+          clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "ET WebApp ${GITHUB_SHA}"
