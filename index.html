@@ -308,7 +308,13 @@
         document.getElementById('vrij'+cap).textContent=formatCurrency(p.vrij);
         document.getElementById('inkomen'+cap).textContent=formatCurrency(p.inkomen);
         document.getElementById('vasteLasten'+cap).textContent='- '+formatCurrency(p.vasteLastenTotaal);
-        renderRows('posten'+cap,p.posten,'bedrag');
+        const sortedPosten=[...p.posten].sort((a,b)=>{
+          const isStorting=post=>/storting/i.test(String(post.item||'')) && /(gezamenlijk|en\\/?of)/i.test(String(post.item||''));
+          const aStorting=isStorting(a), bStorting=isStorting(b);
+          if(aStorting!==bStorting)return aStorting?-1:1;
+          return (Number(b.bedrag)||0)-(Number(a.bedrag)||0);
+        });
+        renderRows('posten'+cap,sortedPosten,'bedrag');
       }
       const huis=data.overview.huis;
       document.getElementById('totaalInbreng').textContent=formatCurrency(huis.totaalInbreng);
