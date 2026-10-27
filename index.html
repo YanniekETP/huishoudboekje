@@ -17,6 +17,9 @@
       scrollbar-width: none;
     }
     .tab-content.hidden { display: none !important; }
+    .tour-focus { position:relative; z-index:51; outline:3px solid #2563eb; outline-offset:5px; border-radius:14px; background-color:white; }
+    #tourPanel { z-index:60; }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior:auto !important; } }
     #tab-dashboard .person-card { min-width: 0; }
     @media (min-width: 1100px) {
       #tab-dashboard:not(.hidden) { display:grid; grid-template-columns:minmax(0, 2fr) minmax(300px, 1fr); gap:20px; align-items:start; }
@@ -35,10 +38,10 @@
         <h1 class="text-lg font-bold text-slate-900 leading-tight">Financiën</h1>
         <p class="text-xs text-slate-400 font-medium">Mandy & Yanniek</p>
       </div>
-      <div class="flex -space-x-2">
+      <div class="flex items-center gap-4"><button type="button" onclick="startTour()" aria-label="Start rondleiding" class="text-xs font-semibold text-blue-600 border border-blue-100 bg-blue-50 rounded-full px-3 py-2">? Uitleg</button><div class="flex -space-x-2">
         <div class="w-8 h-8 rounded-full bg-pink-100 border-2 border-white flex items-center justify-center text-xs font-bold text-pink-600">M</div>
         <div class="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-xs font-bold text-blue-600">Y</div>
-      </div>
+      </div></div>
     </div>
   </header>
 
@@ -146,6 +149,12 @@
 <input id="fixedAmount" type="number" min="0" max="1000000" step="0.01" required placeholder="Bedrag per maand" class="w-full border rounded p-3">
 <div class="flex gap-2"><button type="submit" class="bg-blue-600 text-white rounded p-3 flex-1">Opslaan</button><button type="button" onclick="resetFixedForm()" class="border rounded p-3">Annuleren</button></div>
 </form></div></div>
+<div id="tourPanel" class="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 bg-white border border-blue-200 shadow-2xl rounded-2xl p-5 hidden" role="dialog" aria-modal="false" aria-labelledby="tourTitle">
+  <div class="flex justify-between items-center mb-2"><span id="tourCounter" class="text-xs font-bold text-blue-600"></span><button type="button" onclick="stopTour()" class="text-sm text-slate-500">Sluiten ×</button></div>
+  <h2 id="tourTitle" class="font-bold text-lg text-slate-900 mb-2"></h2>
+  <p id="tourDescription" class="text-sm text-slate-600 leading-relaxed mb-4"></p>
+  <div class="flex justify-between gap-3"><button type="button" id="tourBack" onclick="tourMove(-1)" class="border border-slate-200 rounded-lg px-4 py-2 text-sm">Vorige</button><button type="button" id="tourNext" onclick="tourMove(1)" class="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold">Volgende</button></div>
+</div>
   <!-- Navigatie -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 py-2.5 z-30">
     <div class="max-w-6xl mx-auto flex justify-around text-center text-[11px] font-medium text-slate-400">
@@ -156,6 +165,35 @@
   </nav>
 
   <script>
+    const tourSteps=[
+      {tab:'dashboard',target:'#tab-dashboard',title:'Welkom bij jullie huishoudboekje',description:'Hier zie je de financiën van Mandy, Yanniek en de gezamenlijke rekening in één overzicht.'},
+      {tab:'dashboard',target:'#vrijMandy',title:'Mandy',description:'Dit bedrag is het vrij te besteden geld na de vaste lasten. Daaronder staan de inkomsten en alle maandelijkse posten.'},
+      {tab:'dashboard',target:'#postenYanniek',title:'Yanniek',description:'Ook bij Yanniek staan alle vaste lasten zichtbaar. De bedragen worden uit Google Sheets opgehaald.'},
+      {tab:'dashboard',target:"button[onclick=\"openFixedEditor('mandy')\"]",title:'Vaste lasten aanpassen',description:'Klik op Beheer posten bij Mandy of Yanniek om een post toe te voegen, te wijzigen of te wissen. De wijziging wordt in Google Sheets opgeslagen.'},
+      {tab:'dashboard',target:'#gezamenlijkOverig',title:'Gezamenlijke rekening',description:'Hier staat het maandbudget voor woonlasten, boodschappen, sparen en vakantie. Via Beheer posten pas je de overige gezamenlijke bedragen aan.'},
+      {tab:'huis',target:'#lijstHuisLasten',title:'Tabblad Huis',description:'Bekijk hier alle vaste woonlasten. Via Beheer posten kun je de woonlasten aanpassen.'},
+      {tab:'inboedel',target:'#inboedelForm',title:'Inboedel toevoegen',description:'Vul een aankoop en bedrag in en kies Opslaan in Sheet. De verdeling wordt automatisch berekend.'},
+      {tab:'inboedel',target:'#lijstInboedel',title:'Aankopen beheren',description:'Hier zie je de geregistreerde aankopen. Verwijderen vraagt eerst om een bevestiging. De rondleiding verandert zelf geen gegevens.'}
+    ];
+    let tourIndex=-1,tourTarget=null;
+    function clearTourFocus(){if(tourTarget)tourTarget.classList.remove('tour-focus');tourTarget=null;}
+    function startTour(){closeFixedEditor();tourIndex=0;document.getElementById('tourPanel').classList.remove('hidden');showTourStep();}
+    function stopTour(){clearTourFocus();tourIndex=-1;document.getElementById('tourPanel').classList.add('hidden');}
+    function tourMove(delta){if(tourIndex<0)return;if(tourIndex+delta>=tourSteps.length){stopTour();return;}tourIndex=Math.max(0,tourIndex+delta);showTourStep();}
+    function showTourStep(){
+      clearTourFocus();const step=tourSteps[tourIndex];
+      switchTab(step.tab);
+      document.getElementById('tourCounter').textContent='Stap '+(tourIndex+1)+' van '+tourSteps.length;
+      document.getElementById('tourTitle').textContent=step.title;
+      document.getElementById('tourDescription').textContent=step.description;
+      document.getElementById('tourBack').disabled=tourIndex===0;
+      document.getElementById('tourBack').classList.toggle('opacity-40',tourIndex===0);
+      document.getElementById('tourNext').textContent=tourIndex===tourSteps.length-1?'Afronden':'Volgende';
+      tourTarget=document.querySelector(step.target);
+      if(tourTarget){tourTarget.classList.add('tour-focus');tourTarget.scrollIntoView({behavior:'smooth',block:'nearest'});}
+    }
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tourIndex>=0)stopTour();});
+
     const formatCurrency = (amount) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
 
     function switchTab(tabName) {
