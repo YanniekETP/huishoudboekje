@@ -51,6 +51,8 @@
     <p class="text-xs font-semibold text-slate-500">Gegevens ophalen...</p>
   </div>
 
+  <div id="startupError" role="alert" class="hidden max-w-7xl mx-auto mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800"></div>
+
   <main class="max-w-7xl mx-auto px-4 mt-5">
 
     <!-- OVERZICHT (SIDE BY SIDE) -->
@@ -347,15 +349,42 @@
       alert('Er is een fout opgetreden: ' + err.message);
     }
 
+    // Ook bij een onverwachte renderfout of vastgelopen serveraanroep nooit oneindig laden.
+    let initialLoadFinished = false;
+    function finishInitialLoad() {
+      initialLoadFinished = true;
+      document.getElementById('loading').style.display = 'none';
+    }
+    function showInitialLoadError(err) {
+      finishInitialLoad();
+      const message = err && err.message ? err.message : String(err || 'Onbekende fout');
+      const box = document.getElementById('startupError');
+      box.textContent = 'Financiële gegevens konden niet worden geladen: ' + message;
+      box.classList.remove('hidden');
+      console.error('Huishoudboekje opstartfout:', err);
+    }
+    window.addEventListener('error', function(e) {
+      if (!initialLoadFinished) showInitialLoadError(e.error || new Error(e.message));
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      if (!initialLoadFinished) showInitialLoadError(e.reason);
+    });
     window.onload = function() {
+      setTimeout(function() {
+        if (!initialLoadFinished) showInitialLoadError(new Error('De server reageert niet binnen 25 seconden. Vernieuw de pagina of controleer de Apps Script-uitvoeringen.'));
+      }, 25000);
       if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(renderData)
-          .withFailureHandler(handleError)
-          .getCompleteFinancialData();
+        try {
+          google.script.run
+            .withSuccessHandler(function(data) {
+              try { renderData(data); finishInitialLoad(); }
+              catch(err) { showInitialLoadError(err); }
+            })
+            .withFailureHandler(showInitialLoadError)
+            .getCompleteFinancialData();
+        } catch(err) { showInitialLoadError(err); }
       } else {
-        document.getElementById('loading').style.display = 'none';
-        alert('Open deze app via de gepubliceerde Apps Script-webapp.');
+        showInitialLoadError(new Error('Open de gepubliceerde Apps Script-webapp.'));
       }
     };
 
