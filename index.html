@@ -15,7 +15,7 @@
 
   <!-- Header -->
   <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30">
-    <div class="max-w-2xl mx-auto px-5 py-4 flex justify-between items-center">
+    <div class="max-w-6xl mx-auto px-5 py-4 flex justify-between items-center">
       <div>
         <h1 class="text-lg font-bold text-slate-900 leading-tight">Financiën</h1>
         <p class="text-xs text-slate-400 font-medium">Mandy & Yanniek</p>
@@ -33,11 +33,11 @@
     <p class="text-xs font-semibold text-slate-500">Gegevens ophalen...</p>
   </div>
 
-  <main class="max-w-2xl mx-auto px-4 mt-5">
+  <main class="max-w-6xl mx-auto px-4 mt-5">
 
     <!-- OVERZICHT (SIDE BY SIDE) -->
     <div id="tab-dashboard" class="tab-content space-y-5">
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
         
         <!-- Mandy Links -->
         <div class="space-y-3">
@@ -46,11 +46,11 @@
             <p class="text-xs text-pink-100 mt-2">Vrij te besteden</p>
             <p class="text-2xl font-extrabold" id="vrijMandy">€ 891,26</p>
           </div>
-          <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm space-y-2 text-xs">
+          <div class="bg-white rounded-2xl p-5 border border-pink-100 shadow-sm space-y-3 text-sm">
             <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenMandy">€ 3.600,00</span></div>
             <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenMandy">- € 2.708,74</span></div>
             <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
-            <div id="postenMandy" class="space-y-1 text-[11px] text-slate-600 max-h-48 overflow-y-auto"></div><button type="button" onclick="openFixedEditor('mandy')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
+            <div id="postenMandy" class="space-y-1 text-xs sm:text-sm text-slate-600 "></div><button type="button" onclick="openFixedEditor('mandy')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
           </div>
         </div>
 
@@ -61,11 +61,11 @@
             <p class="text-xs text-blue-100 mt-2">Vrij te besteden</p>
             <p class="text-2xl font-extrabold" id="vrijYanniek">€ 964,50</p>
           </div>
-          <div class="bg-white rounded-2xl p-4 border border-blue-100 shadow-sm space-y-2 text-xs">
+          <div class="bg-white rounded-2xl p-5 border border-blue-100 shadow-sm space-y-3 text-sm">
             <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-500">Inkomen</span><span class="font-bold" id="inkomenYanniek">€ 2.908,00</span></div>
             <div class="flex justify-between border-b border-slate-100 pb-1.5 text-rose-600"><span>Vaste Lasten</span><span class="font-bold" id="vasteLastenYanniek">- € 1.943,50</span></div>
             <p class="font-bold text-slate-900 pt-1">Opbouw posten:</p>
-            <div id="postenYanniek" class="space-y-1 text-[11px] text-slate-600 max-h-48 overflow-y-auto"></div><button type="button" onclick="openFixedEditor('yanniek')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
+            <div id="postenYanniek" class="space-y-1 text-xs sm:text-sm text-slate-600 "></div><button type="button" onclick="openFixedEditor('yanniek')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
           </div>
         </div>
 
@@ -78,7 +78,7 @@
           <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full"><span id="inbrengPP">€ 0,00 p.p.</span></span>
         </div>
         <p class="text-2xl font-extrabold text-slate-900 mb-3" id="totaalInbreng">€ 3.796,80</p>
-        <div class="grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3 text-slate-600">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3 text-slate-600">
           <div>• Vaste lasten huis: <b class="text-slate-900" id="huisVast">€ 0,00</b></div>
           <div id="gezamenlijkOverig" class="col-span-2"></div><button type="button" onclick="openFixedEditor('gezamenlijk')" class="text-blue-600 font-semibold text-xs mt-2">Beheer posten</button>
         </div>
@@ -133,7 +133,7 @@
 </form></div></div>
   <!-- Navigatie -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 py-2.5 z-30">
-    <div class="max-w-2xl mx-auto flex justify-around text-center text-[11px] font-medium text-slate-400">
+    <div class="max-w-6xl mx-auto flex justify-around text-center text-[11px] font-medium text-slate-400">
       <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center nav-active">📊<span class="mt-1">Overzicht</span></button>
       <button onclick="switchTab('huis')" id="nav-huis" class="flex flex-col items-center">🏡<span class="mt-1">Huis</span></button>
       <button onclick="switchTab('inboedel')" id="nav-inboedel" class="flex flex-col items-center">🛋️<span class="mt-1">Inboedel</span></button>
