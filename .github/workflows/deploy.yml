@@ -2,6 +2,13 @@ name: Publiceer huishoudboekje via clasp
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Code.gs'
+      - 'index.html'
+      - 'tests/**'
+      - '.github/workflows/deploy.yml'
 
 permissions:
   contents: read
