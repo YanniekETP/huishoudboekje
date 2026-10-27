@@ -313,8 +313,11 @@
         renderRows('posten'+cap,p.posten.filter(post=>{const label=String(post.item||'').toLowerCase();return !((label.includes('storting')||label.includes('inbreng'))&&(label.includes('en/of')||label.includes('gezamenlijk')));}), 'bedrag');
       }
       const huis=data.overview.huis;
-      document.getElementById('stortingMandy').textContent=formatCurrency(huis.totaalInbreng/2);
-      document.getElementById('stortingYanniek').textContent=formatCurrency(huis.totaalInbreng/2);
+      for (const name of ['mandy','yanniek']) {
+        const cap=name==='mandy'?'Mandy':'Yanniek';
+        const post=(data.overview[name].posten||[]).find(p=>/storting/i.test(String(p.item||'')) && /(gezamenlijk|en\\/?of)/i.test(String(p.item||'')));
+        document.getElementById('storting'+cap).textContent=formatCurrency(post?post.bedrag:huis.totaalInbreng/2);
+      }
       document.getElementById('totaalInbreng').textContent=formatCurrency(huis.totaalInbreng);
       document.getElementById('inbrengPP').textContent=formatCurrency(huis.totaalInbreng/2)+' p.p. (begroot)';
       document.getElementById('huisVast').textContent=formatCurrency(huis.vasteLasten);
