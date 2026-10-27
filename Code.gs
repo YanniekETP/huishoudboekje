@@ -85,6 +85,13 @@ function addInboedelUitgave(form) {
    // Formules in C:E worden relatief gekopieerd vanuit de vorige rij.
    sh.getRange(totalRow-1,3,1,3).copyTo(sh.getRange(row,3,1,3),SpreadsheetApp.CopyPasteType.PASTE_FORMULA,false);
    totalRow=findInboedelTotalRow_(sh);
+   // Bij invoegen direct boven de totaalregel breidt Sheets SUM(B6:B49)
+   // niet altijd automatisch uit. Stel de sommen expliciet opnieuw in.
+   sh.getRange(totalRow,2,1,3).setFormulas([[
+    '=SUM(B6:B'+(totalRow-1)+')',
+    '=SUM(C6:C'+(totalRow-1)+')',
+    '=SUM(D6:D'+(totalRow-1)+')'
+   ]]);
   }
   const target=sh.getRange(row,1,1,2);
   if(target.getValues()[0].some(v=>v!==''))throw new Error('Doelrij is niet leeg; opslaan gestopt.');
